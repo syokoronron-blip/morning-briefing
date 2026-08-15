@@ -12,6 +12,7 @@
 <link rel="manifest" href="assets/manifest.webmanifest">
 <meta name="theme-color" content="#C6613F">
 <meta name="apple-mobile-web-app-title" content="朝ブリーフィング">
+<noscript><style>main.gated{visibility:visible!important}</style></noscript>
 </head>
 <body>
 
@@ -25,13 +26,14 @@
   </div>
 </div>
 
-<main>
+<main class="gated">
   <div class="section-label">お気に入り</div>
   <div id="fav-empty" class="fav-empty" hidden>まだお気に入りがありません。記事の「☆ お気に入り」ボタンを押すとここに追加されます。</div>
   <div id="fav-grid" class="grid"></div>
   <footer id="fav-sync-note" style="padding:0;margin-top:24px;"></footer>
 </main>
 
+<script type="module" src="assets/auth-gate.js"></script>
 <script type="module" src="assets/favorites-page.js"></script>
 </body>
 </html>

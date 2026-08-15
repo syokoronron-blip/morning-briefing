@@ -74,3 +74,35 @@ export async function mountAuthWidgetIfAvailable(container) {
   var authMod = await import("./auth-widget.js");
   authMod.mountAuthWidget(container);
 }
+
+export function signIn() {
+  return loadFirebase().then(function (mod) {
+    if (!mod) {
+      alert("ログイン機能を読み込めませんでした。通信環境を確認して、もう一度お試しください。");
+      return;
+    }
+    return mod.signIn();
+  });
+}
+
+// Reports auth state for gating content behind login. `available: false`
+// means Firebase couldn't be loaded at all - callers should fail open
+// (treat as unlocked) rather than lock users out over a network hiccup.
+export function subscribeAuthState(cb) {
+  var cancelled = false;
+  var unsub = null;
+  loadFirebase().then(function (mod) {
+    if (cancelled) return;
+    if (!mod) {
+      cb({ available: false, signedIn: false });
+      return;
+    }
+    unsub = mod.onAuthChange(function (user) {
+      cb({ available: true, signedIn: !!user, user: user });
+    });
+  });
+  return function unsubscribe() {
+    cancelled = true;
+    if (unsub) unsub();
+  };
+}

@@ -12,6 +12,7 @@
 <link rel="manifest" href="../assets/manifest.webmanifest">
 <meta name="theme-color" content="#C6613F">
 <meta name="apple-mobile-web-app-title" content="朝ブリーフィング">
+<noscript><style>main.gated{visibility:visible!important}</style></noscript>
 </head>
 <body>
 
@@ -31,7 +32,7 @@
   </div>
 </div>
 
-<main>
+<main class="gated">
   <section class="panel active" id="panel-inspire" role="tabpanel" aria-labelledby="tab-btn-inspire">
 
     <div class="featured">
@@ -122,6 +123,7 @@
 </main>
 
 <script src="../assets/site.js"></script>
+<script type="module" src="../assets/auth-gate.js"></script>
 <script type="module" src="../assets/favorites-widget.js"></script>
 </body>
 </html>
