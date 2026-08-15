@@ -411,6 +411,17 @@ main.gated { visibility: hidden; }
   line-height: 1.6;
   margin: 0 0 20px;
 }
+.auth-gate-error {
+  font-size: 12.5px;
+  color: var(--terracotta);
+  background: var(--terracotta-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+  text-align: left;
+  word-break: break-word;
+}
 .auth-gate-btn {
   appearance: none;
   border: none;

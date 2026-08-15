@@ -65,11 +65,17 @@ export function onAuthChange(cb) {
   return onAuthStateChanged(auth, cb);
 }
 
-// Surface redirect sign-in failures (e.g. unauthorized domain) to the
-// console instead of failing silently.
-getRedirectResult(auth).catch(function (e) {
-  console.error("Googleログインに失敗しました", e);
-});
+// Consumers should await this before assuming the signed-in/signed-out
+// state is settled: right after a signInWithRedirect() round trip, the
+// page reloads fresh and getRedirectResult() must finish resolving the
+// pending sign-in before onAuthStateChanged reflects it.
+export let lastRedirectError = null;
+export const redirectResultReady = getRedirectResult(auth)
+  .catch(function (e) {
+    lastRedirectError = e;
+    console.error("Googleログインに失敗しました", e);
+    return null;
+  });
 
 let migratedForUid = null;
 

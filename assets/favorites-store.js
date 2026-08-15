@@ -25,13 +25,23 @@ let firebaseLoadPromise = null;
 
 function loadFirebase() {
   if (!firebaseLoadPromise) {
-    firebaseLoadPromise = import("./firebase-init.js").catch(function (e) {
-      console.warn(
-        "Firebaseを読み込めなかったため、お気に入りはこの端末のみに保存されます。",
-        e
-      );
-      return null;
-    });
+    firebaseLoadPromise = import("./firebase-init.js")
+      .then(function (mod) {
+        // Right after a signInWithRedirect() round trip, the page reloads
+        // fresh - wait for the pending redirect to finish resolving before
+        // treating auth/favorites state as settled, or callers can briefly
+        // observe a stale "signed out" state.
+        return mod.redirectResultReady.then(function () {
+          return mod;
+        });
+      })
+      .catch(function (e) {
+        console.warn(
+          "Firebaseを読み込めなかったため、お気に入りはこの端末のみに保存されます。",
+          e
+        );
+        return null;
+      });
   }
   return firebaseLoadPromise;
 }
@@ -98,7 +108,12 @@ export function subscribeAuthState(cb) {
       return;
     }
     unsub = mod.onAuthChange(function (user) {
-      cb({ available: true, signedIn: !!user, user: user });
+      cb({
+        available: true,
+        signedIn: !!user,
+        user: user,
+        redirectError: mod.lastRedirectError,
+      });
     });
   });
   return function unsubscribe() {
