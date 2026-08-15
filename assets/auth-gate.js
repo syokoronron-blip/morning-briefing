@@ -17,7 +17,6 @@ if (main) {
   document.body.appendChild(overlay);
 
   function showLoading() {
-    overlay.hidden = false;
     overlay.innerHTML =
       '<div class="auth-gate-card">' +
         '<p class="auth-gate-title">読み込み中…</p>' +
@@ -25,7 +24,6 @@ if (main) {
   }
 
   function showPrompt(err) {
-    overlay.hidden = false;
     overlay.innerHTML =
       '<div class="auth-gate-card">' +
         '<p class="auth-gate-title">ログインしてください</p>' +
@@ -49,7 +47,12 @@ if (main) {
   }
 
   function unlock() {
-    overlay.hidden = true;
+    // Not overlay.hidden = true: .auth-gate sets its own `display: flex` in
+    // site.css, and an author stylesheet rule always wins over the
+    // browser's built-in `[hidden] { display: none }` rule regardless of
+    // specificity - so toggling `hidden` alone left this stuck on-screen
+    // after a successful sign-in. Removing the element sidesteps that.
+    overlay.remove();
     main.classList.remove("gated");
   }
 
