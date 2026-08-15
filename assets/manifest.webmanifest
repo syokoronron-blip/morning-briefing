@@ -1,0 +1,12 @@
+{
+  "name": "朝のインスピレーション・ブリーフィング",
+  "short_name": "朝ブリーフィング",
+  "start_url": "../index.html",
+  "display": "browser",
+  "background_color": "#FCFCFB",
+  "theme_color": "#C6613F",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -272,6 +272,86 @@ footer {
 .archive-row .archive-date { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 15px; }
 .archive-row .archive-arrow { color: var(--ink-faint); font-size: 13px; }
 
+/* Top nav actions (tabs and/or favorites link) */
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.fav-nav-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.fav-nav-link:hover { color: var(--clay); }
+
+/* Favorite toggle + comment, injected into .card / .featured */
+.fav-toggle-row { margin-top: 2px; }
+.fav-btn {
+  appearance: none;
+  border: 1px solid var(--hairline);
+  background: var(--card);
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.fav-btn:hover { border-color: var(--clay); color: var(--clay); }
+.fav-btn.is-fav { background: var(--ochre-soft); border-color: var(--ochre); color: var(--ochre); }
+.fav-star { font-size: 13px; line-height: 1; }
+
+.fav-comment {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--wash);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 8px 10px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.fav-comment:focus { outline: none; border-color: var(--clay); }
+
+/* Favorites list page */
+.fav-actions-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fav-remove {
+  appearance: none;
+  border: 1px solid var(--hairline);
+  background: var(--card);
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.fav-remove:hover { border-color: var(--terracotta); color: var(--terracotta); }
+.fav-empty {
+  color: var(--ink-soft);
+  font-size: 14px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+}
+
 @media (max-width: 640px) {
   .masthead { font-size: 24px; }
   .top-inner { align-items: flex-start; }
