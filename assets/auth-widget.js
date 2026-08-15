@@ -12,6 +12,7 @@ export function mountAuthWidget(container) {
   container.appendChild(btn);
 
   function render(user) {
+    btn.disabled = false;
     if (user) {
       var name = user.displayName || user.email || "ログイン中";
       btn.textContent = name + " ・ ログアウト";
@@ -28,9 +29,6 @@ export function mountAuthWidget(container) {
     if (auth.currentUser) {
       signOutUser().catch(function (e) { console.error(e); });
     } else {
-      // signInWithRedirect navigates away from the page - there's nothing
-      // meaningful to await here, and control returns to this code (with
-      // the user signed in) via onAuthChange after the redirect back.
       btn.disabled = true;
       signIn().catch(function (e) {
         console.error("ログインに失敗しました", e);

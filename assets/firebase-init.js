@@ -6,8 +6,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   signOut as fbSignOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -52,9 +51,14 @@ function writeLocal(data) {
 }
 
 export function signIn() {
-  // Redirect (not popup) flow: popups are unreliable in mobile browsers and
-  // in-app browsers. This navigates to Google and back to this same page.
-  return signInWithRedirect(auth, provider);
+  // Popup, not redirect: signInWithRedirect requires the pending-sign-in
+  // state to survive a full navigation away to accounts.google.com and
+  // back through this site's authDomain (a different eTLD from this
+  // GitHub Pages site) - browsers that partition/restrict cross-site
+  // storage can silently drop that state, which is what was happening
+  // here. The popup flow keeps this window alive and gets the result back
+  // directly, so it doesn't depend on that.
+  return signInWithPopup(auth, provider);
 }
 
 export function signOutUser() {
@@ -64,18 +68,6 @@ export function signOutUser() {
 export function onAuthChange(cb) {
   return onAuthStateChanged(auth, cb);
 }
-
-// Consumers should await this before assuming the signed-in/signed-out
-// state is settled: right after a signInWithRedirect() round trip, the
-// page reloads fresh and getRedirectResult() must finish resolving the
-// pending sign-in before onAuthStateChanged reflects it.
-export let lastRedirectError = null;
-export const redirectResultReady = getRedirectResult(auth)
-  .catch(function (e) {
-    lastRedirectError = e;
-    console.error("Googleログインに失敗しました", e);
-    return null;
-  });
 
 let migratedForUid = null;
 
