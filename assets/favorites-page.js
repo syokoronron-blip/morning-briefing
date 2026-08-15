@@ -11,9 +11,9 @@
     '人を動かす人': 'badge-axis4',
     '生命・生物の発見': 'badge-axis5',
     '労務・法改正': 'badge-labor',
-    'HRtech': 'badge-hrtech',
-    'Fintech': 'badge-fintech',
-    'バックオフィスSaaS': 'badge-backoffice'
+    '競合動向': 'badge-competitor',
+    '業界構造・市場動向': 'badge-industry',
+    '中小企業・経済環境': 'badge-smb'
   };
 
   function loadFavorites() {
