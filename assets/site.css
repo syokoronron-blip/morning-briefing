@@ -236,9 +236,9 @@ main {
 .badge-axis4 { background: var(--terracotta-soft); color: var(--terracotta); }
 .badge-axis5 { background: var(--sage-soft); color: var(--sage); }
 .badge-labor { background: var(--slate-soft); color: var(--slate); }
-.badge-hrtech { background: var(--ochre-soft); color: var(--ochre); }
-.badge-fintech { background: var(--sage-soft); color: var(--sage); }
-.badge-backoffice { background: var(--terracotta-soft); color: var(--terracotta); }
+.badge-competitor { background: var(--ochre-soft); color: var(--ochre); }
+.badge-industry { background: var(--sage-soft); color: var(--sage); }
+.badge-smb { background: var(--terracotta-soft); color: var(--terracotta); }
 
 footer {
   max-width: 980px;
