@@ -24,12 +24,17 @@ if (main) {
       "</div>";
   }
 
-  function showPrompt() {
+  function showPrompt(err) {
     overlay.hidden = false;
     overlay.innerHTML =
       '<div class="auth-gate-card">' +
         '<p class="auth-gate-title">ログインしてください</p>' +
         '<p class="auth-gate-desc">このブリーフィングはGoogleアカウントでログインすると読めます。</p>' +
+        (err
+          ? '<p class="auth-gate-error">前回のログインでエラーが発生しました：' +
+            (err.code || err.message || String(err)) +
+            "</p>"
+          : "") +
         '<button type="button" class="auth-gate-btn">Googleでログイン</button>' +
       "</div>";
     overlay.querySelector(".auth-gate-btn").addEventListener("click", function (e) {
@@ -51,7 +56,17 @@ if (main) {
     if (!state.available || state.signedIn) {
       unlock();
     } else {
-      showPrompt();
+      showPrompt(state.redirectError);
+    }
+  });
+
+  // If this page is restored from the back-forward cache (common right
+  // after a signInWithRedirect() round trip on some mobile browsers), its
+  // module scripts don't re-run and the gate can be left showing stale
+  // pre-login state. Force a real reload so it re-evaluates fresh.
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted) {
+      location.reload();
     }
   });
 }
