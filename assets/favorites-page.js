@@ -21,13 +21,30 @@ var BADGE_CLASS_MAP = {
 
 var currentFavorites = {};
 
+function reportSaveError(e) {
+  console.error("お気に入りの保存に失敗しました", e);
+  if (!syncNoteEl) return;
+  var code = e && (e.code || e.message);
+  syncNoteEl.textContent =
+    "保存に失敗しました" + (code ? "（" + code + "）" : "") + "。もう一度お試しください。";
+  syncNoteEl.classList.add("fav-sync-note-error");
+}
+
 function render(favorites, status) {
   currentFavorites = favorites;
 
   if (syncNoteEl) {
-    syncNoteEl.textContent = status && status.signedIn
-      ? "Googleアカウントに同期されています。他の端末でも同じお気に入りが見られます。"
-      : "この端末のブラウザ内にのみ保存されています。Googleでログインすると他の端末とも同期されます。";
+    if (status && status.error) {
+      var code = status.error.code || status.error.message || String(status.error);
+      syncNoteEl.textContent =
+        "同期エラーが発生しました（" + code + "）。この端末にも保存されていない可能性があります。";
+      syncNoteEl.classList.add("fav-sync-note-error");
+    } else {
+      syncNoteEl.classList.remove("fav-sync-note-error");
+      syncNoteEl.textContent = status && status.signedIn
+        ? "Googleアカウントに同期されています。他の端末でも同じお気に入りが見られます。"
+        : "この端末のブラウザ内にのみ保存されています。Googleでログインすると他の端末とも同期されます。";
+    }
   }
 
   var entries = Object.keys(favorites).map(function (url) {
@@ -86,7 +103,7 @@ function render(favorites, status) {
       var next = Object.assign({}, currentFavorites);
       next[entry.url] = Object.assign({}, next[entry.url], { comment: textarea.value });
       currentFavorites = next;
-      saveFavorites(next).catch(function (e) { console.error(e); });
+      saveFavorites(next).catch(reportSaveError);
     }
     textarea.addEventListener("input", function () {
       clearTimeout(saveTimer);
@@ -116,7 +133,7 @@ function render(favorites, status) {
       var next = Object.assign({}, currentFavorites);
       delete next[entry.url];
       currentFavorites = next;
-      saveFavorites(next).catch(function (e) { console.error(e); });
+      saveFavorites(next).catch(reportSaveError);
       render(next, { signedIn: !!(status && status.signedIn) });
     });
     actions.appendChild(removeBtn);

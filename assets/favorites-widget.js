@@ -20,11 +20,28 @@ if (targets.length) {
     return srcEl ? srcEl.textContent.trim() : "";
   }
 
+  var syncErrorEl = null;
+  function reportSyncError(e) {
+    if (!syncErrorEl) {
+      syncErrorEl = document.createElement("div");
+      syncErrorEl.className = "fav-sync-error";
+      syncErrorEl.setAttribute("role", "alert");
+      var topInner = document.querySelector(".top-inner");
+      (topInner || document.body).appendChild(syncErrorEl);
+    }
+    var code = e && (e.code || e.message);
+    syncErrorEl.textContent =
+      "お気に入りの同期に失敗しました" + (code ? "（" + code + "）" : "") +
+      "。この端末にも保存されていない可能性があります。";
+    syncErrorEl.hidden = false;
+  }
+
   function commit(nextFavorites) {
     currentFavorites = nextFavorites;
     controllers.forEach(function (c) { c.syncFromData(currentFavorites); });
     saveFavorites(nextFavorites).catch(function (e) {
       console.error("お気に入りの保存に失敗しました", e);
+      reportSyncError(e);
     });
   }
 
@@ -123,8 +140,9 @@ if (targets.length) {
     controllers.push({ url: url, syncFromData: syncFromData });
   });
 
-  subscribeFavorites(function (data) {
+  subscribeFavorites(function (data, status) {
     currentFavorites = data;
     controllers.forEach(function (c) { c.syncFromData(data); });
+    if (status && status.error) reportSyncError(status.error);
   });
 }

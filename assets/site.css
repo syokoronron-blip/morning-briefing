@@ -306,6 +306,19 @@ footer {
 .auth-btn.is-signed-in { background: var(--sage-soft); border-color: var(--sage); color: var(--sage); }
 .auth-btn:disabled { opacity: .6; cursor: default; }
 
+/* Favorites sync error banner (assets/favorites-widget.js) - spans the
+   width of .top-inner, below the date/tabs row. */
+.fav-sync-error {
+  flex-basis: 100%;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--terracotta);
+  background: var(--terracotta-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.fav-sync-note-error { color: var(--terracotta); }
+
 /* Favorite toggle + comment, injected into .card / .featured */
 .fav-toggle-row { margin-top: 2px; }
 .fav-btn {
