@@ -22,18 +22,14 @@ function writeLocal(data) {
 }
 
 let firebaseLoadPromise = null;
+let resolvedFirebaseModule = null;
 
 function loadFirebase() {
   if (!firebaseLoadPromise) {
     firebaseLoadPromise = import("./firebase-init.js")
       .then(function (mod) {
-        // Right after a signInWithRedirect() round trip, the page reloads
-        // fresh - wait for the pending redirect to finish resolving before
-        // treating auth/favorites state as settled, or callers can briefly
-        // observe a stale "signed out" state.
-        return mod.redirectResultReady.then(function () {
-          return mod;
-        });
+        resolvedFirebaseModule = mod;
+        return mod;
       })
       .catch(function (e) {
         console.warn(
@@ -85,11 +81,20 @@ export async function mountAuthWidgetIfAvailable(container) {
   authMod.mountAuthWidget(container);
 }
 
+// Calls straight into the already-loaded module when possible, rather than
+// through an extra .then() - signInWithPopup must be invoked synchronously
+// within the click handler's call stack, or browsers can treat the popup as
+// not user-initiated and block it. By the time a sign-in button is visible
+// and clickable, Firebase has already loaded successfully (that's why the
+// button exists), so this is the common path; the async fallback only
+// covers the unlikely case of a click landing before that.
 export function signIn() {
+  if (resolvedFirebaseModule) {
+    return resolvedFirebaseModule.signIn();
+  }
   return loadFirebase().then(function (mod) {
     if (!mod) {
-      alert("ログイン機能を読み込めませんでした。通信環境を確認して、もう一度お試しください。");
-      return;
+      throw new Error("Firebaseを読み込めませんでした。通信環境を確認してください。");
     }
     return mod.signIn();
   });
@@ -108,12 +113,7 @@ export function subscribeAuthState(cb) {
       return;
     }
     unsub = mod.onAuthChange(function (user) {
-      cb({
-        available: true,
-        signedIn: !!user,
-        user: user,
-        redirectError: mod.lastRedirectError,
-      });
+      cb({ available: true, signedIn: !!user, user: user });
     });
   });
   return function unsubscribe() {

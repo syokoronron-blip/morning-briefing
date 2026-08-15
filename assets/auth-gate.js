@@ -41,7 +41,10 @@ if (main) {
       var btn = e.currentTarget;
       btn.disabled = true;
       btn.textContent = "ログイン中…";
-      signIn();
+      signIn().catch(function (err) {
+        console.error("ログインに失敗しました", err);
+        showPrompt(err);
+      });
     });
   }
 
@@ -56,17 +59,7 @@ if (main) {
     if (!state.available || state.signedIn) {
       unlock();
     } else {
-      showPrompt(state.redirectError);
-    }
-  });
-
-  // If this page is restored from the back-forward cache (common right
-  // after a signInWithRedirect() round trip on some mobile browsers), its
-  // module scripts don't re-run and the gate can be left showing stale
-  // pre-login state. Force a real reload so it re-evaluates fresh.
-  window.addEventListener("pageshow", function (event) {
-    if (event.persisted) {
-      location.reload();
+      showPrompt();
     }
   });
 }
