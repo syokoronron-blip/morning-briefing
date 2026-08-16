@@ -20,6 +20,13 @@ var BADGE_CLASS_MAP = {
 };
 
 var currentFavorites = {};
+// url -> { el, textarea }. Reused across renders so an in-progress edit
+// (e.g. typing a comment) never has its <textarea> torn down and rebuilt -
+// on mobile that blurs the field and dismisses the keyboard mid-sentence.
+// This matters especially once signed in: saving a comment round-trips
+// through Firestore's realtime listener and triggers another render()
+// almost immediately, echoing our own write back.
+var cardsByUrl = {};
 
 function reportSaveError(e) {
   console.error("お気に入りの保存に失敗しました", e);
@@ -30,23 +37,113 @@ function reportSaveError(e) {
   syncNoteEl.classList.add("fav-sync-note-error");
 }
 
-function render(favorites, status) {
-  currentFavorites = favorites;
-
-  if (syncNoteEl) {
-    if (status && status.error) {
-      var code = status.error.code || status.error.message || String(status.error);
-      syncNoteEl.textContent =
-        "同期エラーが発生しました（" + code + "）。この端末にも保存されていない可能性があります。";
-      syncNoteEl.classList.add("fav-sync-note-error");
-    } else {
-      syncNoteEl.classList.remove("fav-sync-note-error");
-      syncNoteEl.textContent = status && status.signedIn
-        ? "Googleアカウントに同期されています。他の端末でも同じお気に入りが見られます。"
-        : "この端末のブラウザ内にのみ保存されています。Googleでログインすると他の端末とも同期されます。";
-    }
+function updateSyncNote(status) {
+  if (!syncNoteEl) return;
+  if (status && status.error) {
+    var code = status.error.code || status.error.message || String(status.error);
+    syncNoteEl.textContent =
+      "同期エラーが発生しました（" + code + "）。この端末にも保存されていない可能性があります。";
+    syncNoteEl.classList.add("fav-sync-note-error");
+  } else {
+    syncNoteEl.classList.remove("fav-sync-note-error");
+    syncNoteEl.textContent = status && status.signedIn
+      ? "Googleアカウントに同期されています。他の端末でも同じお気に入りが見られます。"
+      : "この端末のブラウザ内にのみ保存されています。Googleでログインすると他の端末とも同期されます。";
   }
+}
 
+function buildCard(url) {
+  var card = document.createElement("div");
+  card.className = "card";
+
+  var badge = document.createElement("span");
+  badge.className = "badge";
+  card.appendChild(badge);
+
+  var h3 = document.createElement("h3");
+  var titleLink = document.createElement("a");
+  titleLink.href = url;
+  titleLink.target = "_blank";
+  titleLink.rel = "noopener";
+  h3.appendChild(titleLink);
+  card.appendChild(h3);
+
+  var meta = document.createElement("div");
+  meta.className = "meta";
+  var metaSpan = document.createElement("span");
+  meta.appendChild(metaSpan);
+  card.appendChild(meta);
+
+  var textarea = document.createElement("textarea");
+  textarea.className = "fav-comment";
+  textarea.rows = 2;
+  textarea.placeholder = "メモ（任意）";
+  var saveTimer = null;
+  function persistComment() {
+    if (!currentFavorites[url]) return;
+    var next = Object.assign({}, currentFavorites);
+    next[url] = Object.assign({}, next[url], { comment: textarea.value });
+    currentFavorites = next;
+    saveFavorites(next).catch(reportSaveError);
+  }
+  textarea.addEventListener("input", function () {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistComment, 400);
+  });
+  textarea.addEventListener("blur", function () {
+    clearTimeout(saveTimer);
+    persistComment();
+  });
+  card.appendChild(textarea);
+
+  var actions = document.createElement("div");
+  actions.className = "link-row fav-actions-row";
+
+  var readLink = document.createElement("a");
+  readLink.href = url;
+  readLink.target = "_blank";
+  readLink.rel = "noopener";
+  readLink.textContent = "元記事を読む ↗";
+  actions.appendChild(readLink);
+
+  var removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "fav-remove";
+  removeBtn.textContent = "削除";
+  removeBtn.addEventListener("click", function () {
+    var next = Object.assign({}, currentFavorites);
+    delete next[url];
+    currentFavorites = next;
+    saveFavorites(next).catch(reportSaveError);
+    reconcile(next);
+  });
+  actions.appendChild(removeBtn);
+
+  card.appendChild(actions);
+
+  return { el: card, badge: badge, titleLink: titleLink, metaSpan: metaSpan, meta: meta, textarea: textarea };
+}
+
+function updateCard(c, entry) {
+  var cls = BADGE_CLASS_MAP[entry.badge];
+  c.badge.className = "badge" + (cls ? " " + cls : "");
+  c.badge.textContent = entry.badge || "";
+  c.badge.hidden = !entry.badge;
+
+  c.titleLink.textContent = entry.title || entry.url;
+
+  c.meta.hidden = !entry.meta;
+  c.metaSpan.textContent = entry.meta || "";
+
+  // Never touch the value of a textarea the user is actively typing in -
+  // this is what used to get destroyed/recreated on every render.
+  if (document.activeElement !== c.textarea) {
+    var val = entry.comment || "";
+    if (c.textarea.value !== val) c.textarea.value = val;
+  }
+}
+
+function reconcile(favorites) {
   var entries = Object.keys(favorites).map(function (url) {
     var entry = Object.assign({}, favorites[url]);
     entry.url = url;
@@ -54,93 +151,34 @@ function render(favorites, status) {
   });
   entries.sort(function (a, b) { return (b.savedAt || 0) - (a.savedAt || 0); });
 
-  grid.innerHTML = "";
+  emptyEl.hidden = !!entries.length;
 
-  if (!entries.length) {
-    emptyEl.hidden = false;
-    return;
-  }
-  emptyEl.hidden = true;
-
+  var seen = {};
   entries.forEach(function (entry) {
-    var card = document.createElement("div");
-    card.className = "card";
-
-    if (entry.badge) {
-      var badge = document.createElement("span");
-      var cls = BADGE_CLASS_MAP[entry.badge];
-      badge.className = "badge" + (cls ? " " + cls : "");
-      badge.textContent = entry.badge;
-      card.appendChild(badge);
+    seen[entry.url] = true;
+    var c = cardsByUrl[entry.url];
+    if (!c) {
+      c = buildCard(entry.url);
+      cardsByUrl[entry.url] = c;
     }
-
-    var h3 = document.createElement("h3");
-    var titleLink = document.createElement("a");
-    titleLink.href = entry.url;
-    titleLink.target = "_blank";
-    titleLink.rel = "noopener";
-    titleLink.textContent = entry.title || entry.url;
-    h3.appendChild(titleLink);
-    card.appendChild(h3);
-
-    if (entry.meta) {
-      var meta = document.createElement("div");
-      meta.className = "meta";
-      var span = document.createElement("span");
-      span.textContent = entry.meta;
-      meta.appendChild(span);
-      card.appendChild(meta);
-    }
-
-    var textarea = document.createElement("textarea");
-    textarea.className = "fav-comment";
-    textarea.rows = 2;
-    textarea.placeholder = "メモ（任意）";
-    textarea.value = entry.comment || "";
-    var saveTimer = null;
-    function persistComment() {
-      if (!currentFavorites[entry.url]) return;
-      var next = Object.assign({}, currentFavorites);
-      next[entry.url] = Object.assign({}, next[entry.url], { comment: textarea.value });
-      currentFavorites = next;
-      saveFavorites(next).catch(reportSaveError);
-    }
-    textarea.addEventListener("input", function () {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(persistComment, 400);
-    });
-    textarea.addEventListener("blur", function () {
-      clearTimeout(saveTimer);
-      persistComment();
-    });
-    card.appendChild(textarea);
-
-    var actions = document.createElement("div");
-    actions.className = "link-row fav-actions-row";
-
-    var readLink = document.createElement("a");
-    readLink.href = entry.url;
-    readLink.target = "_blank";
-    readLink.rel = "noopener";
-    readLink.textContent = "元記事を読む ↗";
-    actions.appendChild(readLink);
-
-    var removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "fav-remove";
-    removeBtn.textContent = "削除";
-    removeBtn.addEventListener("click", function () {
-      var next = Object.assign({}, currentFavorites);
-      delete next[entry.url];
-      currentFavorites = next;
-      saveFavorites(next).catch(reportSaveError);
-      render(next, { signedIn: !!(status && status.signedIn) });
-    });
-    actions.appendChild(removeBtn);
-
-    card.appendChild(actions);
-    grid.appendChild(card);
+    updateCard(c, entry);
+    // appendChild on a node already in the document just repositions it -
+    // it doesn't detach/reattach, so a focused textarea stays focused.
+    grid.appendChild(c.el);
   });
+
+  Object.keys(cardsByUrl).forEach(function (url) {
+    if (!seen[url]) {
+      cardsByUrl[url].el.remove();
+      delete cardsByUrl[url];
+    }
+  });
+}
+
+function render(favorites, status) {
+  currentFavorites = favorites;
+  updateSyncNote(status);
+  reconcile(favorites);
 }
 
 if (grid) {
