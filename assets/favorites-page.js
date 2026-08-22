@@ -154,6 +154,7 @@ function reconcile(favorites) {
   emptyEl.hidden = !!entries.length;
 
   var seen = {};
+  var prevEl = null;
   entries.forEach(function (entry) {
     seen[entry.url] = true;
     var c = cardsByUrl[entry.url];
@@ -162,9 +163,17 @@ function reconcile(favorites) {
       cardsByUrl[entry.url] = c;
     }
     updateCard(c, entry);
-    // appendChild on a node already in the document just repositions it -
-    // it doesn't detach/reattach, so a focused textarea stays focused.
-    grid.appendChild(c.el);
+    // Only move the card if it isn't already in the right spot. Calling
+    // appendChild/insertBefore on a node that already has a parent still
+    // does a real remove-then-insert per the DOM spec, even when the net
+    // order doesn't change - and that blurs a focused descendant (e.g. a
+    // comment textarea mid-edit). Since this reconcile runs on every
+    // autosave round-trip (save -> realtime listener echo -> render), that
+    // was blurring the very textarea the user was typing into.
+    if (c.el.parentNode !== grid || c.el.previousSibling !== prevEl) {
+      grid.insertBefore(c.el, prevEl ? prevEl.nextSibling : grid.firstChild);
+    }
+    prevEl = c.el;
   });
 
   Object.keys(cardsByUrl).forEach(function (url) {
