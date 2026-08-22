@@ -84,11 +84,13 @@ if (targets.length) {
       btn.setAttribute("aria-pressed", isFav ? "true" : "false");
       star.textContent = isFav ? "★" : "☆";
       label.textContent = isFav ? "お気に入り済み" : "お気に入り";
-      textarea.hidden = !isFav;
-      // Don't clobber the textarea while the user is actively typing in it -
-      // remote updates (e.g. another device) can arrive mid-edit.
-      if (isFav && document.activeElement !== textarea) {
-        textarea.value = entry.comment || "";
+      // Don't touch the textarea while the user is actively typing in it -
+      // remote updates (e.g. another device) can arrive mid-edit, and
+      // toggling `hidden` on a focused element blurs it even when this
+      // specific entry's favorited state hasn't actually changed.
+      if (document.activeElement !== textarea) {
+        textarea.hidden = !isFav;
+        if (isFav) textarea.value = entry.comment || "";
       }
     }
 
@@ -101,7 +103,10 @@ if (targets.length) {
           title: title,
           badge: badge,
           meta: meta,
-          comment: "",
+          // The CSS [hidden] fix aside, keep this defensive: preserve
+          // whatever's already in the box rather than hardcoding "", so a
+          // note typed before hitting the star isn't discarded.
+          comment: textarea.value || "",
           pageTitle: document.title,
           pageUrl: location.pathname + location.search,
           savedAt: Date.now(),

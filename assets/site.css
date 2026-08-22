@@ -363,6 +363,11 @@ footer {
   box-sizing: border-box;
 }
 .fav-comment:focus { outline: none; border-color: var(--clay); }
+/* [hidden] alone can't win against the display rule above - an author
+   stylesheet rule always beats the browser's built-in [hidden]{display:none}
+   regardless of specificity or source order, so it needs an explicit,
+   higher-specificity override here (same issue as .badge/.card .meta). */
+.fav-comment[hidden] { display: none; }
 
 /* Favorites list page */
 .fav-actions-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
