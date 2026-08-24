@@ -151,12 +151,31 @@ export function isSignedIn() {
   return !!auth.currentUser;
 }
 
+const UPLOAD_TIMEOUT_MS = 20000;
+
+function withTimeout(promise, message) {
+  return new Promise(function (resolve, reject) {
+    var timer = setTimeout(function () {
+      reject(new Error(message));
+    }, UPLOAD_TIMEOUT_MS);
+    promise.then(
+      function (v) { clearTimeout(timer); resolve(v); },
+      function (e) { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
 // Uploads an image for a favorite's card to this user's own Storage path
 // (favorite-images/{uid}/...) and returns { url, path }. `path` is kept on
 // the favorite entry so the file can be deleted later (removeFavoriteImage,
 // or when the favorite itself is removed). Requires sign-in - Storage rules
 // key writes off request.auth.uid, so there's nowhere to put an
 // unauthenticated user's upload.
+//
+// Wrapped in a timeout: a misconfigured/never-enabled Storage bucket or a
+// blocked network path can leave the underlying request neither resolving
+// nor rejecting, which would otherwise strand the UI on "アップロード中…"
+// forever instead of surfacing an error.
 export async function uploadFavoriteImage(file) {
   const user = auth.currentUser;
   if (!user) throw new Error("画像を添付するにはログインが必要です。");
@@ -165,8 +184,11 @@ export async function uploadFavoriteImage(file) {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
   const path = "favorite-images/" + user.uid + "/" + Date.now() + "-" + safeName;
   const ref = storageRef(storage, path);
-  await uploadBytes(ref, file, { contentType: file.type });
-  const url = await getDownloadURL(ref);
+  await withTimeout(
+    uploadBytes(ref, file, { contentType: file.type }),
+    "アップロードがタイムアウトしました。Firebase StorageのセキュリティルールとStorageの有効化状況を確認してください。"
+  );
+  const url = await withTimeout(getDownloadURL(ref), "画像URLの取得がタイムアウトしました。");
   return { url: url, path: path };
 }
 
