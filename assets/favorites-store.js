@@ -100,6 +100,21 @@ export function signIn() {
   });
 }
 
+// Both require sign-in (Storage rules key writes off request.auth.uid), so
+// there's no localStorage-mode fallback here - callers should keep the
+// upload control hidden/disabled while signed out.
+export async function uploadFavoriteImage(file) {
+  var mod = await loadFirebase();
+  if (!mod) throw new Error("画像のアップロードにはネットワーク接続が必要です。");
+  return mod.uploadFavoriteImage(file);
+}
+
+export async function removeFavoriteImage(path) {
+  var mod = await loadFirebase();
+  if (!mod) return;
+  return mod.removeFavoriteImage(path);
+}
+
 // Reports auth state for gating content behind login. `available: false`
 // means Firebase couldn't be loaded at all - callers should fail open
 // (treat as unlocked) rather than lock users out over a network hiccup.

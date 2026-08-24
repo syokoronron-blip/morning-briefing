@@ -17,6 +17,13 @@ import {
   setDoc,
   onSnapshot,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDIN5gGiOxvfHzHVAm01PsB-vN_N-SB2mY",
@@ -30,7 +37,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 const provider = new GoogleAuthProvider();
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const LOCAL_KEY = "mb-favorites-v1";
 
@@ -139,4 +149,34 @@ export async function saveFavorites(data) {
 
 export function isSignedIn() {
   return !!auth.currentUser;
+}
+
+// Uploads an image for a favorite's card to this user's own Storage path
+// (favorite-images/{uid}/...) and returns { url, path }. `path` is kept on
+// the favorite entry so the file can be deleted later (removeFavoriteImage,
+// or when the favorite itself is removed). Requires sign-in - Storage rules
+// key writes off request.auth.uid, so there's nowhere to put an
+// unauthenticated user's upload.
+export async function uploadFavoriteImage(file) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("画像を添付するにはログインが必要です。");
+  if (!/^image\//.test(file.type)) throw new Error("画像ファイルを選択してください。");
+  if (file.size > MAX_IMAGE_BYTES) throw new Error("画像は5MB以下にしてください。");
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
+  const path = "favorite-images/" + user.uid + "/" + Date.now() + "-" + safeName;
+  const ref = storageRef(storage, path);
+  await uploadBytes(ref, file, { contentType: file.type });
+  const url = await getDownloadURL(ref);
+  return { url: url, path: path };
+}
+
+// Best-effort: an image left behind in Storage is harmless clutter, not a
+// data-loss risk, so a delete failure (e.g. already gone) is only logged.
+export async function removeFavoriteImage(path) {
+  if (!path) return;
+  try {
+    await deleteObject(storageRef(storage, path));
+  } catch (e) {
+    console.warn("画像の削除に失敗しました", e);
+  }
 }
