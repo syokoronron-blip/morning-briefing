@@ -1,4 +1,10 @@
-import { subscribeFavorites, saveFavorites, mountAuthWidgetIfAvailable } from "./favorites-store.js";
+import {
+  subscribeFavorites,
+  saveFavorites,
+  mountAuthWidgetIfAvailable,
+  uploadFavoriteImage,
+  removeFavoriteImage,
+} from "./favorites-store.js";
 
 var authContainer = document.querySelector(".top-actions");
 mountAuthWidgetIfAvailable(authContainer);
@@ -20,6 +26,7 @@ var BADGE_CLASS_MAP = {
 };
 
 var currentFavorites = {};
+var currentStatus = {};
 // url -> { el, textarea }. Reused across renders so an in-progress edit
 // (e.g. typing a comment) never has its <textarea> torn down and rebuilt -
 // on mobile that blurs the field and dismisses the keyboard mid-sentence.
@@ -96,6 +103,85 @@ function buildCard(url) {
   });
   card.appendChild(textarea);
 
+  var image = document.createElement("img");
+  image.className = "fav-image";
+  image.alt = "";
+  image.hidden = true;
+  card.appendChild(image);
+
+  var imageRow = document.createElement("div");
+  imageRow.className = "fav-image-row";
+
+  var fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = "image/*";
+  fileInput.hidden = true;
+
+  var addImageBtn = document.createElement("button");
+  addImageBtn.type = "button";
+  addImageBtn.className = "fav-image-btn";
+  addImageBtn.textContent = "画像を追加";
+  addImageBtn.addEventListener("click", function () { fileInput.click(); });
+
+  var removeImageBtn = document.createElement("button");
+  removeImageBtn.type = "button";
+  removeImageBtn.className = "fav-image-btn fav-image-remove";
+  removeImageBtn.textContent = "画像を削除";
+  removeImageBtn.hidden = true;
+
+  var imageStatus = document.createElement("span");
+  imageStatus.className = "fav-image-status";
+
+  fileInput.addEventListener("change", function () {
+    var file = fileInput.files && fileInput.files[0];
+    fileInput.value = "";
+    if (!file || !currentFavorites[url]) return;
+    var oldPath = currentFavorites[url].imagePath;
+    addImageBtn.disabled = true;
+    imageStatus.textContent = "アップロード中…";
+    uploadFavoriteImage(file)
+      .then(function (result) {
+        if (!currentFavorites[url]) return;
+        var next = Object.assign({}, currentFavorites);
+        next[url] = Object.assign({}, next[url], { imageUrl: result.url, imagePath: result.path });
+        currentFavorites = next;
+        imageStatus.textContent = "";
+        reconcile(next);
+        return saveFavorites(next).then(function () {
+          if (oldPath && oldPath !== result.path) removeFavoriteImage(oldPath);
+        });
+      })
+      .catch(function (e) {
+        console.error("画像のアップロードに失敗しました", e);
+        imageStatus.textContent =
+          "アップロードに失敗しました" + (e && e.message ? "（" + e.message + "）" : "");
+      })
+      .finally(function () {
+        addImageBtn.disabled = false;
+      });
+  });
+
+  removeImageBtn.addEventListener("click", function () {
+    var current = currentFavorites[url];
+    if (!current || !current.imageUrl) return;
+    if (!window.confirm("画像を削除しますか？")) return;
+    var oldPath = current.imagePath;
+    var next = Object.assign({}, currentFavorites);
+    next[url] = Object.assign({}, next[url]);
+    delete next[url].imageUrl;
+    delete next[url].imagePath;
+    currentFavorites = next;
+    saveFavorites(next).catch(reportSaveError);
+    reconcile(next);
+    if (oldPath) removeFavoriteImage(oldPath);
+  });
+
+  imageRow.appendChild(addImageBtn);
+  imageRow.appendChild(removeImageBtn);
+  imageRow.appendChild(imageStatus);
+  imageRow.appendChild(fileInput);
+  card.appendChild(imageRow);
+
   var actions = document.createElement("div");
   actions.className = "link-row fav-actions-row";
 
@@ -111,17 +197,31 @@ function buildCard(url) {
   removeBtn.className = "fav-remove";
   removeBtn.textContent = "削除";
   removeBtn.addEventListener("click", function () {
+    var title = titleLink.textContent || url;
+    if (!window.confirm("「" + title + "」をお気に入りから削除しますか？")) return;
+    var oldPath = currentFavorites[url] && currentFavorites[url].imagePath;
     var next = Object.assign({}, currentFavorites);
     delete next[url];
     currentFavorites = next;
     saveFavorites(next).catch(reportSaveError);
     reconcile(next);
+    if (oldPath) removeFavoriteImage(oldPath);
   });
   actions.appendChild(removeBtn);
 
   card.appendChild(actions);
 
-  return { el: card, badge: badge, titleLink: titleLink, metaSpan: metaSpan, meta: meta, textarea: textarea };
+  return {
+    el: card,
+    badge: badge,
+    titleLink: titleLink,
+    metaSpan: metaSpan,
+    meta: meta,
+    textarea: textarea,
+    image: image,
+    addImageBtn: addImageBtn,
+    removeImageBtn: removeImageBtn,
+  };
 }
 
 function updateCard(c, entry) {
@@ -141,6 +241,20 @@ function updateCard(c, entry) {
     var val = entry.comment || "";
     if (c.textarea.value !== val) c.textarea.value = val;
   }
+
+  if (entry.imageUrl) {
+    if (c.image.src !== entry.imageUrl) c.image.src = entry.imageUrl;
+    c.image.hidden = false;
+    c.removeImageBtn.hidden = false;
+    c.addImageBtn.textContent = "画像を変更";
+  } else {
+    c.image.hidden = true;
+    c.image.removeAttribute("src");
+    c.removeImageBtn.hidden = true;
+    c.addImageBtn.textContent = "画像を追加";
+  }
+  c.addImageBtn.disabled = !currentStatus.signedIn;
+  c.addImageBtn.title = currentStatus.signedIn ? "" : "ログインすると画像を添付できます";
 }
 
 function reconcile(favorites) {
@@ -186,6 +300,7 @@ function reconcile(favorites) {
 
 function render(favorites, status) {
   currentFavorites = favorites;
+  currentStatus = status || {};
   updateSyncNote(status);
   reconcile(favorites);
 }
